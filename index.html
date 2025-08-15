@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>谁是卧底 - 聚会游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E40AF', // 深蓝主色调
+                        secondary: '#3B82F6', // 亮蓝辅助色
+                        accent: '#F59E0B', // 橙色强调色
+                        dark: '#1E293B', // 深色背景
+                        light: '#F8FAFC'  // 浅色背景
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .btn-primary {
+                @apply bg-primary text-white font-medium py-3 px-6 rounded-lg shadow-md transition-all duration-300 hover:bg-primary/90 active:scale-95;
+            }
+            .btn-accent {
+                @apply bg-accent text-white font-medium py-3 px-6 rounded-lg shadow-md transition-all duration-300 hover:bg-accent/90 active:scale-95;
+            }
+            .btn-outline {
+                @apply border-2 border-primary text-primary font-medium py-3 px-6 rounded-lg transition-all duration-300 hover:bg-primary/10 active:scale-95;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-dark to-primary min-h-screen text-light font-sans overflow-x-hidden">
+    <!-- 页面容器 -->
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <!-- 游戏标题 -->
+        <div class="text-center mb-8 pt-4">
+            <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-shadow text-transparent bg-clip-text bg-gradient-to-r from-secondary to-accent">
+                谁是卧底
+            </h1>
+            <p class="text-gray-300 mt-2">聚会必备 · 离线畅玩</p>
+        </div>
+        
+        <!-- 开始界面 -->
+        <div id="start-screen" class="transition-all duration-500">
+            <div class="bg-dark/60 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-6">
+                <h2 class="text-xl font-bold mb-4 text-center">游戏设置</h2>
+                
+                <!-- 玩家人数选择 -->
+                <div class="mb-6">
+                    <label class="block text-gray-300 mb-2">玩家人数</label>
+                    <div class="flex items-center justify-between bg-dark/80 rounded-lg p-3">
+                        <button id="decrease-players" class="w-10 h-10 flex items-center justify-center rounded-full bg-primary/20 hover:bg-primary/40 transition-colors">
+                            <i class="fa fa-minus"></i>
+                        </button>
+                        <span id="player-count" class="text-2xl font-bold">6</span>
+                        <button id="increase-players" class="w-10 h-10 flex items-center justify-center rounded-full bg-primary/20 hover:bg-primary/40 transition-colors">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1 text-center">最少3人，最多12人</p>
+                </div>
+                
+                <!-- 卧底人数选择 -->
+                <div class="mb-6">
+                    <label class="block text-gray-300 mb-2">卧底人数</label>
+                    <div class="flex items-center justify-between bg-dark/80 rounded-lg p-3">
+                        <button id="decrease-spies" class="w-10 h-10 flex items-center justify-center rounded-full bg-primary/20 hover:bg-primary/40 transition-colors">
+                            <i class="fa fa-minus"></i>
+                        </button>
+                        <span id="spy-count" class="text-2xl font-bold">1</span>
+                        <button id="increase-spies" class="w-10 h-10 flex items-center justify-center rounded-full bg-primary/20 hover:bg-primary/40 transition-colors">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1 text-center">最多为玩家数的一半</p>
+                </div>
+                
+                <button id="start-game" class="btn-primary w-full flex items-center justify-center">
+                    <i class="fa fa-play mr-2"></i> 开始游戏
+                </button>
+            </div>
+            
+            <div class="bg-dark/40 backdrop-blur-sm rounded-xl p-5 text-center">
+                <h3 class="font-bold mb-2">游戏规则</h3>
+                <p class="text-sm text-gray-300">
+                    玩家分为平民和卧底，各自获得不同但相关的词语。轮流描述后，所有玩家同时投票，得票最多者出局，直到分出胜负。
+                </p>
+            </div>
+        </div>
+        
+        <!-- 词语查看界面 -->
+        <div id="word-screen" class="hidden transition-all duration-500">
+            <div class="bg-dark/60 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-6 text-center relative">
+                <!-- 防偷看遮挡层 -->
+                <div id="word-overlay" class="absolute inset-0 bg-dark/95 rounded-xl flex flex-col items-center justify-center z-10 hidden">
+                    <p class="text-xl mb-4">请将设备交给 <span id="overlay-next-player" class="text-accent font-bold"></span></p>
+                    <p class="text-gray-400 mb-6">他们需要点击下方按钮查看自己的词语</p>
+                    <button id="overlay-confirm" class="btn-primary">
+                        我已准备好查看 <i class="fa fa-eye ml-2"></i>
+                    </button>
+                </div>
+                
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">当前玩家</h2>
+                    <span id="current-player-indicator" class="bg-accent/30 text-accent px-3 py-1 rounded-full text-sm font-medium">
+                        玩家1
+                    </span>
+                </div>
+                
+                <h3 class="text-lg font-medium mb-4">你的词语</h3>
+                <div class="my-8 p-6 bg-primary/30 rounded-lg border-2 border-secondary/50">
+                    <p id="player-word" class="text-3xl font-bold"></p>
+                </div>
+                <p class="text-gray-300 mb-2">记住你的词语，不要让别人知道哦！</p>
+                <p class="text-gray-400 text-sm mb-6">
+                    <span id="remaining-players-count">5</span> 位玩家等待查看
+                </p>
+                
+                <button id="next-player" class="btn-primary w-full">
+                    传给下一位 <i class="fa fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+            
+            <div class="text-center text-gray-400 text-sm">
+                <p>提示：看完后请将设备交给下一位玩家</p>
+            </div>
+        </div>
+        
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="hidden transition-all duration-500">
+            <div class="bg-dark/60 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">游戏进行中</h2>
+                    <div class="flex space-x-2">
+                        <button id="restart-game" class="btn-outline py-2 px-4 text-sm">
+                            <i class="fa fa-refresh mr-1"></i> 重开
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 玩家列表 -->
+                <div class="mb-6">
+                    <h3 class="text-gray-300 mb-3">玩家状态</h3>
+                    <div id="players-list" class="grid grid-cols-3 gap-2">
+                        <!-- 玩家会动态生成在这里 -->
+                    </div>
+                </div>
+                
+                <!-- 游戏状态 -->
+                <div id="game-status" class="bg-dark/80 rounded-lg p-4 mb-6 text-center">
+                    <p class="text-lg">请轮流描述自己的词语</p>
+                </div>
+                
+                <button id="start-vote" class="btn-accent w-full">
+                    <i class="fa fa-hand-paper-o mr-2"></i> 开始投票
+                </button>
+            </div>
+        </div>
+        
+        <!-- 投票界面 -->
+        <div id="vote-screen" class="hidden transition-all duration-500">
+            <div class="bg-dark/60 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-6">
+                <h2 class="text-xl font-bold mb-4 text-center">投票阶段</h2>
+                <p class="text-gray-300 text-center mb-4">请所有玩家依次选择怀疑的对象</p>
+                <p class="text-gray-400 text-sm text-center mb-2">当前进度: <span id="vote-progress" class="text-accent font-medium">0/6</span></p>
+                <p class="text-gray-400 text-sm text-center mb-6">提示：每位玩家选择后提交，然后传给下一位</p>
+                
+                <!-- 投票列表 -->
+                <div id="voting-list" class="grid grid-cols-3 gap-2 mb-6">
+                    <!-- 可投票的玩家会动态生成在这里 -->
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button id="cancel-vote" class="btn-outline flex-1">
+                        <i class="fa fa-times mr-1"></i> 取消
+                    </button>
+                    <button id="submit-vote" class="btn-accent flex-1" disabled>
+                        <i class="fa fa-check mr-1"></i> 提交
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 投票结果界面 -->
+        <div id="vote-result-screen" class="hidden transition-all duration-500">
+            <div class="bg-dark/60 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-6 text-center">
+                <h2 class="text-xl font-bold mb-4">投票结果</h2>
+                
+                <div id="vote-tally" class="my-4 space-y-2 max-h-40 overflow-y-auto p-2">
+                    <!-- 投票统计会显示在这里 -->
+                </div>
+                
+                <div id="elimination-result" class="my-6 p-4 rounded-lg bg-primary/20">
+                    <!-- 投票结果会显示在这里 -->
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button id="show-eliminated-role" class="btn-outline flex-1 py-2">
+                        <i class="fa fa-eye mr-1"></i> 查看身份
+                    </button>
+                    <button id="continue-game" class="btn-primary flex-1 py-2">
+                        继续游戏 <i class="fa fa-arrow-right mr-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏结束界面 -->
+        <div id="end-screen" class="hidden transition-all duration-500">
+            <div class="bg-dark/60 backdrop-blur-sm rounded-xl p-6 shadow-xl mb-6 text-center">
+                <h2 id="winner-text" class="text-2xl font-bold mb-4"></h2>
+                
+                <div id="game-summary" class="my-6 space-y-4">
+                    <!-- 游戏总结会显示在这里 -->
+                </div>
+                
+                <div class="mt-8">
+                    <button id="play-again" class="btn-primary w-full">
+                        <i class="fa fa-refresh mr-2"></i> 再来一局
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏数据
+        const gameData = {
+            totalPlayers: 6,
+            totalSpies: 1,
+            currentPlayerIndex: 0, // 用于轮流查看词语
+            players: [],
+            words: {
+                civilian: "",
+                spy: ""
+            },
+            eliminatedPlayers: [],
+            votes: [],
+            votedPlayers: [] // 记录已投票的玩家ID
+        };
+        
+        // 词语库 - 平民词和卧底词的配对
+        const wordPairs = [
+            { civilian: "牛奶", spy: "豆浆" },
+            { civilian: "火锅", spy: "麻辣烫" },
+            { civilian: "手机", spy: "平板" },
+            { civilian: "自行车", spy: "电动车" },
+            { civilian: "汉堡", spy: "三明治" },
+            { civilian: "空调", spy: "电风扇" },
+            { civilian: "白菜", spy: "青菜" },
+            { civilian: "钢笔", spy: "铅笔" },
+            { civilian: "足球", spy: "篮球" },
+            { civilian: "白酒", spy: "啤酒" },
+            { civilian: "火车", spy: "高铁" },
+            { civilian: "米饭", spy: "面条" },
+            { civilian: "咖啡", spy: "茶" },
+            { civilian: "衬衫", spy: "T恤" },
+            { civilian: "图书馆", spy: "书店" }
+        ];
+        
+        // DOM 元素
+        const elements = {
+            startScreen: document.getElementById('start-screen'),
+            wordScreen: document.getElementById('word-screen'),
+            gameScreen: document.getElementById('game-screen'),
+            voteScreen: document.getElementById('vote-screen'),
+            voteResultScreen: document.getElementById('vote-result-screen'),
+            endScreen: document.getElementById('end-screen'),
+            
+            // 防偷看相关元素
+            wordOverlay: document.getElementById('word-overlay'),
+            overlayNextPlayer: document.getElementById('overlay-next-player'),
+            overlayConfirm: document.getElementById('overlay-confirm'),
+            
+            playerCount: document.getElementById('player-count'),
+            spyCount: document.getElementById('spy-count'),
+            decreasePlayers: document.getElementById('decrease-players'),
+            increasePlayers: document.getElementById('increase-players'),
+            decreaseSpies: document.getElementById('decrease-spies'),
+            increaseSpies: document.getElementById('increase-spies'),
+            
+            startGame: document.getElementById('start-game'),
+            nextPlayer: document.getElementById('next-player'),
+            startVote: document.getElementById('start-vote'),
+            cancelVote: document.getElementById('cancel-vote'),
+            submitVote: document.getElementById('submit-vote'),
+            restartGame: document.getElementById('restart-game'),
+            continueGame: document.getElementById('continue-game'),
+            showEliminatedRole: document.getElementById('show-eliminated-role'),
+            playAgain: document.getElementById('play-again'),
+            
+            playerWord: document.getElementById('player-word'),
+            currentPlayerIndicator: document.getElementById('current-player-indicator'),
+            remainingPlayersCount: document.getElementById('remaining-players-count'),
+            voteProgress: document.getElementById('vote-progress'),
+            playersList: document.getElementById('players-list'),
+            votingList: document.getElementById('voting-list'),
+            gameStatus: document.getElementById('game-status'),
+            eliminationResult: document.getElementById('elimination-result'),
+            voteTally: document.getElementById('vote-tally'),
+            winnerText: document.getElementById('winner-text'),
+            gameSummary: document.getElementById('game-summary')
+        };
+        
+        // 初始化事件监听
+        function initEventListeners() {
+            // 玩家数量调整
+            elements.decreasePlayers.addEventListener('click', () => {
+                if (gameData.totalPlayers > 3) {
+                    gameData.totalPlayers--;
+                    updatePlayerCount();
+                    updateMaxSpies();
+                }
+            });
+            
+            elements.increasePlayers.addEventListener('click', () => {
+                if (gameData.totalPlayers < 12) {
+                    gameData.totalPlayers++;
+                    updatePlayerCount();
+                    updateMaxSpies();
+                }
+            });
+            
+            // 卧底数量调整
+            elements.decreaseSpies.addEventListener('click', () => {
+                if (gameData.totalSpies > 1) {
+                    gameData.totalSpies--;
+                    updateSpyCount();
+                }
+            });
+            
+            elements.increaseSpies.addEventListener('click', () => {
+                if (gameData.totalSpies < Math.floor(gameData.totalPlayers / 2)) {
+                    gameData.totalSpies++;
+                    updateSpyCount();
+                }
+            });
+            
+            // 游戏控制
+            elements.startGame.addEventListener('click', startGame);
+            elements.nextPlayer.addEventListener('click', nextPlayer);
+            elements.startVote.addEventListener('click', showVoteScreen);
+            elements.cancelVote.addEventListener('click', showGameScreen);
+            elements.submitVote.addEventListener('click', processVote);
+            elements.restartGame.addEventListener('click', restartGame);
+            elements.continueGame.addEventListener('click', checkGameStatus);
+            elements.showEliminatedRole.addEventListener('click', showEliminatedRole);
+            elements.playAgain.addEventListener('click', restartGame);
+            
+            // 防偷看相关
+            elements.overlayConfirm.addEventListener('click', () => {
+                elements.wordOverlay.classList.add('hidden');
+                showCurrentPlayerWord();
+            });
+        }
+        
+        // 更新玩家数量显示
+        function updatePlayerCount() {
+            elements.playerCount.textContent = gameData.totalPlayers;
+        }
+        
+        // 更新卧底数量显示
+        function updateSpyCount() {
+            elements.spyCount.textContent = gameData.totalSpies;
+        }
+        
+        // 更新最大卧底数量限制
+        function updateMaxSpies() {
+            const maxSpies = Math.floor(gameData.totalPlayers / 2);
+            if (gameData.totalSpies > maxSpies) {
+                gameData.totalSpies = maxSpies;
+                updateSpyCount();
+            }
+        }
+        
+        // 开始游戏
+        function startGame() {
+            // 重置游戏数据
+            gameData.players = [];
+            gameData.eliminatedPlayers = [];
+            gameData.votes = [];
+            gameData.votedPlayers = [];
+            gameData.currentPlayerIndex = 0;
+            
+            // 随机选择词语对
+            const randomPair = wordPairs[Math.floor(Math.random() * wordPairs.length)];
+            gameData.words.civilian = randomPair.civilian;
+            gameData.words.spy = randomPair.spy;
+            
+            // 创建玩家
+            for (let i = 0; i < gameData.totalPlayers; i++) {
+                gameData.players.push({
+                    id: i,
+                    name: `玩家${i + 1}`,
+                    isSpy: i < gameData.totalSpies,
+                    isEliminated: false,
+                    hasViewedWord: false
+                });
+            }
+            
+            // 打乱玩家顺序（使卧底位置随机）
+            shuffleArray(gameData.players);
+            
+            // 显示第一位玩家的词语（无遮挡）
+            elements.wordOverlay.classList.add('hidden');
+            showCurrentPlayerWord();
+            
+            // 显示词语界面
+            showWordScreen();
+        }
+        
+        // 显示当前玩家的词语
+        function showCurrentPlayerWord() {
+            const currentPlayer = gameData.players[gameData.currentPlayerIndex];
+            elements.playerWord.textContent = currentPlayer.isSpy 
+                ? gameData.words.spy 
+                : gameData.words.civilian;
+                
+            elements.currentPlayerIndicator.textContent = currentPlayer.name;
+            currentPlayer.hasViewedWord = true;
+            
+            // 更新剩余玩家数量
+            const remaining = gameData.players.filter(p => !p.hasViewedWord).length;
+            elements.remainingPlayersCount.textContent = remaining;
+        }
+        
+        // 切换到下一位玩家查看词语
+        function nextPlayer() {
+            // 检查是否所有玩家都已查看词语
+            const allViewed = gameData.players.every(p => p.hasViewedWord);
+            
+            if (allViewed) {
+                // 所有玩家都已查看，进入游戏界面
+                showGameScreen();
+            } else {
+                // 找到下一个未查看词语的玩家
+                let nextIndex;
+                do {
+                    nextIndex = (gameData.currentPlayerIndex + 1) % gameData.players.length;
+                } while (gameData.players[nextIndex].hasViewedWord);
+                
+                // 显示遮挡层，准备切换玩家
+                elements.overlayNextPlayer.textContent = gameData.players[nextIndex].name;
+                elements.wordOverlay.classList.remove('hidden');
+                
+                // 隐藏当前词语
+                elements.playerWord.textContent = '';
+                
+                // 更新当前玩家索引
+                gameData.currentPlayerIndex = nextIndex;
+            }
+        }
+        
+        // 显示词语界面
+        function showWordScreen() {
+            hideAllScreens();
+            elements.wordScreen.classList.remove('hidden');
+            
+            // 添加入场动画
+            elements.wordScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.wordScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 显示游戏界面
+        function showGameScreen() {
+            hideAllScreens();
+            elements.gameScreen.classList.remove('hidden');
+            
+            // 更新玩家列表
+            updatePlayersList();
+            
+            // 添加入场动画
+            elements.gameScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.gameScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 显示投票界面
+        function showVoteScreen() {
+            hideAllScreens();
+            elements.voteScreen.classList.remove('hidden');
+            
+            // 重置投票
+            gameData.votes = [];
+            gameData.votedPlayers = [];
+            elements.submitVote.disabled = true;
+            
+            // 更新投票进度
+            updateVoteProgress();
+            
+            // 更新投票列表
+            updateVotingList();
+            
+            // 添加入场动画
+            elements.voteScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.voteScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 更新投票进度
+        function updateVoteProgress() {
+            const remainingPlayers = gameData.players.filter(p => !p.isEliminated).length;
+            elements.voteProgress.textContent = `${gameData.votes.length}/${remainingPlayers}`;
+        }
+        
+        // 显示投票结果界面
+        function showVoteResultScreen(eliminatedPlayer, voteCounts) {
+            hideAllScreens();
+            elements.voteResultScreen.classList.remove('hidden');
+            
+            // 显示投票统计
+            let tallyHtml = '';
+            for (const [playerId, count] of Object.entries(voteCounts)) {
+                const player = gameData.players.find(p => p.id === parseInt(playerId));
+                tallyHtml += `
+                    <div class="flex justify-between items-center p-2 bg-dark/50 rounded">
+                        <span>${player.name}</span>
+                        <span class="flex items-center">
+                            ${'🗳️'.repeat(count)} ${count}票
+                        </span>
+                    </div>
+                `;
+            }
+            elements.voteTally.innerHTML = tallyHtml;
+            
+            // 显示被淘汰的玩家
+            elements.eliminationResult.innerHTML = `
+                <p class="text-lg mb-2">${eliminatedPlayer.name} 被淘汰了</p>
+                <p class="text-gray-300" id="role-reveal" style="display: none;">
+                    身份: ${eliminatedPlayer.isSpy ? '卧底' : '平民'}
+                </p>
+            `;
+            
+            // 添加入场动画
+            elements.voteResultScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.voteResultScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 显示平局提示界面
+        function showTieVoteScreen() {
+            hideAllScreens();
+            elements.voteResultScreen.classList.remove('hidden');
+            
+            // 显示平局信息
+            elements.voteTally.innerHTML = '<p class="text-center py-2">出现票数相同的情况</p>';
+            elements.eliminationResult.innerHTML = `
+                <p class="text-lg mb-2">投票结果平局</p>
+                <p class="text-gray-300">需要重新投票</p>
+            `;
+            
+            // 修改按钮文本
+            elements.showEliminatedRole.classList.add('hidden');
+            elements.continueGame.textContent = '重新投票';
+            
+            // 添加入场动画
+            elements.voteResultScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.voteResultScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 显示游戏结束界面
+        function showEndScreen(isSpiesWon) {
+            hideAllScreens();
+            elements.endScreen.classList.remove('hidden');
+            
+            // 显示获胜方
+            elements.winnerText.textContent = isSpiesWon ? '卧底胜利！' : '平民胜利！';
+            elements.winnerText.className = isSpiesWon 
+                ? 'text-2xl font-bold mb-4 text-accent' 
+                : 'text-2xl font-bold mb-4 text-secondary';
+            
+            // 显示游戏总结
+            let summaryHtml = `
+                <div class="p-3 bg-primary/20 rounded-lg">
+                    <p class="font-medium">平民词: ${gameData.words.civilian}</p>
+                    <p class="font-medium">卧底词: ${gameData.words.spy}</p>
+                </div>
+                <div>
+                    <p class="font-medium mb-2">玩家身份:</p>
+                    <div class="grid grid-cols-2 gap-2">
+            `;
+            
+            gameData.players.forEach(player => {
+                summaryHtml += `
+                    <div class="flex items-center justify-between p-2 rounded-lg ${player.isEliminated ? 'bg-gray-700/50' : 'bg-primary/10'}">
+                        <span>${player.name}</span>
+                        <span class="${player.isSpy ? 'text-accent' : 'text-secondary'}">
+                            ${player.isSpy ? '卧底' : '平民'}
+                        </span>
+                    </div>
+                `;
+            });
+            
+            summaryHtml += `
+                    </div>
+                </div>
+            `;
+            
+            elements.gameSummary.innerHTML = summaryHtml;
+            
+            // 添加入场动画
+            elements.endScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.endScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 隐藏所有界面
+        function hideAllScreens() {
+            elements.startScreen.classList.add('hidden');
+            elements.wordScreen.classList.add('hidden');
+            elements.gameScreen.classList.add('hidden');
+            elements.voteScreen.classList.add('hidden');
+            elements.voteResultScreen.classList.add('hidden');
+            elements.endScreen.classList.add('hidden');
+            
+            // 重置平局状态的按钮
+            elements.showEliminatedRole.classList.remove('hidden');
+            elements.continueGame.innerHTML = '继续游戏 <i class="fa fa-arrow-right mr-1"></i>';
+        }
+        
+        // 更新玩家列表显示
+        function updatePlayersList() {
+            elements.playersList.innerHTML = '';
+            
+            gameData.players.forEach(player => {
+                const playerElement = document.createElement('div');
+                playerElement.className = `
+                    flex flex-col items-center justify-center p-3 rounded-lg text-center card-hover
+                    ${player.isEliminated 
+                        ? 'bg-gray-700/50 text-gray-400 line-through' 
+                        : player.isSpy 
+                            ? 'bg-accent/20' 
+                            : 'bg-secondary/20'}
+                `;
+                
+                playerElement.innerHTML = `
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center mb-1 ${player.isEliminated ? 'bg-gray-600' : player.isSpy ? 'bg-accent/40' : 'bg-secondary/40'}">
+                        ${player.id + 1}
+                    </div>
+                    <span class="text-sm">${player.name}</span>
+                `;
+                
+                elements.playersList.appendChild(playerElement);
+            });
+        }
+        
+        // 更新投票列表
+        function updateVotingList() {
+            elements.votingList.innerHTML = '';
+            
+            gameData.players.forEach(player => {
+                if (!player.isEliminated) {
+                    const voteElement = document.createElement('div');
+                    voteElement.className = `
+                        flex flex-col items-center justify-center p-3 rounded-lg text-center card-hover cursor-pointer
+                        bg-secondary/20 hover:bg-secondary/40 transition-colors
+                    `;
+                    
+                    voteElement.innerHTML = `
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center mb-1 bg-secondary/40">
+                            ${player.id + 1}
+                        </div>
+                        <span class="text-sm">${player.name}</span>
+                    `;
+                    
+                    voteElement.addEventListener('click', () => {
+                        // 清除其他选中状态
+                        document.querySelectorAll('#voting-list > div').forEach(el => {
+                            el.classList.remove('ring-2', 'ring-accent', 'bg-secondary/40');
+                        });
+                        
+                        // 设置当前选中状态
+                        voteElement.classList.add('ring-2', 'ring-accent', 'bg-secondary/40');
+                        
+                        // 启用提交按钮
+                        elements.submitVote.disabled = false;
+                        
+                        // 存储当前选择的候选人ID（使用data属性）
+                        voteElement.setAttribute('data-candidate-id', player.id);
+                    });
+                    
+                    elements.votingList.appendChild(voteElement);
+                }
+            });
+        }
+        
+        // 处理投票（集体投票机制）
+        function processVote() {
+            // 获取选中的候选人ID
+            const selectedElement = document.querySelector('#voting-list > div.ring-2');
+            if (!selectedElement) return;
+            
+            const candidateId = parseInt(selectedElement.getAttribute('data-candidate-id'));
+            
+            // 添加投票
+            gameData.votes.push({
+                candidateId: candidateId
+            });
+            
+            // 更新投票进度
+            updateVoteProgress();
+            
+            // 检查是否所有未淘汰的玩家都已投票
+            const remainingPlayers = gameData.players.filter(p => !p.isEliminated).length;
+            
+            if (gameData.votes.length < remainingPlayers) {
+                // 还有玩家未投票，重置界面
+                elements.submitVote.disabled = true;
+                updateVotingList();
+                
+                // 提示传递设备给下一位玩家
+                alert(`已记录1票，还剩${remainingPlayers - gameData.votes.length}票，请将设备传给下一位玩家继续投票`);
+            } else {
+                // 所有玩家都已投票，统计结果
+                const voteCounts = {};
+                gameData.votes.forEach(vote => {
+                    voteCounts[vote.candidateId] = (voteCounts[vote.candidateId] || 0) + 1;
+                });
+                
+                // 获取所有得票数
+                const voteValues = Object.values(voteCounts);
+                const maxVotes = Math.max(...voteValues);
+                
+                // 检查是否有平局（多个玩家获得最高票数）
+                const topCandidates = Object.keys(voteCounts).filter(id => voteCounts[id] === maxVotes);
+                
+                if (topCandidates.length > 1) {
+                    // 出现平局，需要重新投票
+                    showTieVoteScreen();
+                } else {
+                    // 找出得票最多的玩家
+                    const eliminatedPlayerId = parseInt(topCandidates[0]);
+                    
+                    // 找到被淘汰的玩家
+                    const eliminatedPlayerIndex = gameData.players.findIndex(p => p.id === eliminatedPlayerId);
+                    gameData.players[eliminatedPlayerIndex].isEliminated = true;
+                    gameData.eliminatedPlayers.push(gameData.players[eliminatedPlayerIndex]);
+                    
+                    // 显示投票结果
+                    showVoteResultScreen(gameData.players[eliminatedPlayerIndex], voteCounts);
+                }
+            }
+        }
+        
+        // 显示被淘汰玩家的身份
+        function showEliminatedRole() {
+            document.getElementById('role-reveal').style.display = 'block';
+            elements.showEliminatedRole.disabled = true;
+            elements.showEliminatedRole.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        
+        // 检查游戏状态（是否结束）
+        function checkGameStatus() {
+            // 如果是平局后的重新投票
+            if (elements.continueGame.textContent.trim() === '重新投票') {
+                showVoteScreen();
+                return;
+            }
+            
+            // 计算剩余的平民和卧底数量
+            const remainingCivilians = gameData.players.filter(p => !p.isSpy && !p.isEliminated).length;
+            const remainingSpies = gameData.players.filter(p => p.isSpy && !p.isEliminated).length;
+            
+            // 检查游戏是否结束
+            if (remainingSpies === 0) {
+                // 平民胜利
+                showEndScreen(false);
+            } else if (remainingSpies >= remainingCivilians) {
+                // 卧底胜利
+                showEndScreen(true);
+            } else {
+                // 游戏继续
+                showGameScreen();
+            }
+        }
+        
+        // 重新开始游戏
+        function restartGame() {
+            hideAllScreens();
+            elements.startScreen.classList.remove('hidden');
+            
+            // 添加入场动画
+            elements.startScreen.classList.add('animate-fadeIn');
+            setTimeout(() => {
+                elements.startScreen.classList.remove('animate-fadeIn');
+            }, 500);
+        }
+        
+        // 打乱数组顺序（Fisher-Yates算法）
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        
+        // 添加简单的动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fadeIn {
+                animation: fadeIn 0.5s ease-out forwards;
+            }
+            #player-word {
+                transition: opacity 0.3s ease;
+            }
+            #player-word.opacity-0 {
+                opacity: 0;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // 初始化应用
+        function init() {
+            initEventListeners();
+        }
+        
+        // 启动应用
+        init();
+    </script>
+</body>
+</html>
